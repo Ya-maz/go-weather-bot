@@ -1,0 +1,8 @@
+-- +goose Up
+-- +goose StatementBegin
+CREATE TABLE users (
+    id integer primary key,
+    city text,
+    created_at timestamp default NOW()
+);
+-- +goose StatementEnd
