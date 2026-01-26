@@ -9,7 +9,7 @@ import (
 	"study/weatherbot/repo"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
 
@@ -19,16 +19,15 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
-		log.Fatalf("Unable to connect to database: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Unable to create connection pool: %v\n", err)
 	}
-	defer conn.Close(context.Background())
+	defer pool.Close()
 
-    err = conn.Ping(context.Background())
+    err = pool.Ping(context.Background())
     if err != nil {
-        log.Fatal("Error ping db")
+        log.Fatal("Error ping pool")
     }
 
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
@@ -42,7 +41,7 @@ func main() {
 
 	owClient := openweather.New(os.Getenv("OPEN_WEATHER_API_KEY"))
 
-    userRepo := repo.New(conn)
+    userRepo := repo.New(pool)
 
 	botHandler := handler.New(bot, owClient, userRepo)
 

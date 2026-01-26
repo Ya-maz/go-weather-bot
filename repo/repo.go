@@ -7,13 +7,14 @@ import (
 	"study/weatherbot/models"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repo struct {
-	db *pgx.Conn
+	db *pgxpool.Pool
 }
 
-func New(db *pgx.Conn) *Repo {
+func New(db *pgxpool.Pool) *Repo {
 	return &Repo{
 		db: db,
 	}
@@ -21,7 +22,7 @@ func New(db *pgx.Conn) *Repo {
 
 func (r *Repo) GetUserCity(ctx context.Context, userID int64) (string, error) {
 	var city string
-	row := r.db.QueryRow(ctx, "select city form users where id = $1", userID)
+	row := r.db.QueryRow(ctx, "select city from users where id = $1", userID)
 	err := row.Scan(&city)
 	if err != nil {
 		return "", fmt.Errorf("error row.Scan: %w", err)

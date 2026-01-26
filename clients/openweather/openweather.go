@@ -25,6 +25,7 @@ func (o OpenWeatherClient) Coordinates(city string) (Coordinate, error) {
 		log.Println(err)
 		return Coordinate{}, fmt.Errorf("error get Coordinates: %w", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		log.Println(err)
@@ -55,6 +56,7 @@ func (o OpenWeatherClient) Weather(lat float64, lon float64) (Weather, error) {
 		log.Println(err)
 		return Weather{}, fmt.Errorf("error get weather: %w", err)
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		log.Println(err)
