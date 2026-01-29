@@ -4,33 +4,38 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/signal"
 	"study/weatherbot/clients/openweather"
+	"study/weatherbot/config"
 	"study/weatherbot/handler"
 	"study/weatherbot/repo"
+	"syscall"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	err := godotenv.Load()
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Error loading config: %v", err)
 	}
 
-	pool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := pgxpool.New(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatalf("Unable to create connection pool: %v\n", err)
 	}
 	defer pool.Close()
 
-    err = pool.Ping(context.Background())
-    if err != nil {
-        log.Fatal("Error ping pool")
-    }
+	err = pool.Ping(ctx)
+	if err != nil {
+		log.Fatal("Error ping pool")
+	}
 
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
+	bot, err := tgbotapi.NewBotAPI(cfg.BotToken)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -39,11 +44,11 @@ func main() {
 
 	log.Printf("Authorized on account %s", bot.Self.UserName)
 
-	owClient := openweather.New(os.Getenv("OPEN_WEATHER_API_KEY"))
+	owClient := openweather.New(cfg.OpenWeatherAPIKey)
 
-    userRepo := repo.New(pool)
+	userRepo := repo.New(pool)
 
 	botHandler := handler.New(bot, owClient, userRepo)
 
-	botHandler.Start()
+	botHandler.Start(ctx)
 }

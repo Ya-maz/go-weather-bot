@@ -7,6 +7,8 @@ import (
 	"math"
 	"study/weatherbot/clients/openweather"
 	"study/weatherbot/models"
+	"sync"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -18,26 +20,29 @@ type userRepository interface {
 	GetUser(ctx context.Context, userID int64) (*models.User, error)
 }
 
-type Handler struct {
-	bot      *tgbotapi.BotAPI
-	owClient *openweather.OpenWeatherClient
-	userRepo userRepository
+type weatherProvider interface {
+	Coordinates(ctx context.Context, city string) (openweather.Coordinate, error)
+	Weather(ctx context.Context, lat float64, lon float64) (openweather.Weather, error)
 }
 
-func New(bot *tgbotapi.BotAPI, owClient *openweather.OpenWeatherClient, userRepo userRepository) *Handler {
+type Handler struct {
+	bot        *tgbotapi.BotAPI
+	owProvider weatherProvider
+	userRepo   userRepository
+}
+
+func New(bot *tgbotapi.BotAPI, owProvider weatherProvider, userRepo userRepository) *Handler {
 	return &Handler{
-		bot:      bot,
-		owClient: owClient,
-		userRepo: userRepo,
+		bot:        bot,
+		owProvider: owProvider,
+		userRepo:   userRepo,
 	}
 }
 
-func (h *Handler) handleUpdate(update tgbotapi.Update) {
+func (h *Handler) handleUpdate(ctx context.Context, update tgbotapi.Update) {
 	if update.Message == nil {
 		return
 	}
-
-	ctx := context.Background()
 
 	if update.Message.IsCommand() {
 		err := h.ensureUser(ctx, update)
@@ -66,14 +71,35 @@ func (h *Handler) handleUpdate(update tgbotapi.Update) {
 	h.bot.Send(msg)
 }
 
-func (h *Handler) Start() {
+func (h *Handler) Start(ctx context.Context) {
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := h.bot.GetUpdatesChan(u)
 
-	for update := range updates {
-		h.handleUpdate(update)
+	var wg sync.WaitGroup
+
+	log.Println("Bot handler started...")
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("Stopping bot handler...")
+			h.bot.StopReceivingUpdates()
+			wg.Wait()
+			log.Println("Bot handler stopped gracefully.")
+			return
+		case update, ok := <-updates:
+			if !ok {
+				wg.Wait()
+				return
+			}
+			wg.Add(1)
+			go func(upd tgbotapi.Update) {
+				defer wg.Done()
+				h.handleUpdate(ctx, upd)
+			}(update)
+		}
 	}
 }
 
@@ -109,7 +135,11 @@ func (h *Handler) handleSendWeather(ctx context.Context, update tgbotapi.Update)
 	}
 
 	log.Printf("[%s] %s", update.Message.From.UserName, update.Message.Text)
-	coordinate, err := h.owClient.Coordinates(city)
+
+	weatherCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	coordinate, err := h.owProvider.Coordinates(weatherCtx, city)
 	if err != nil {
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Не смогли получить координаты")
 		msg.ReplyToMessageID = update.Message.MessageID
@@ -117,7 +147,7 @@ func (h *Handler) handleSendWeather(ctx context.Context, update tgbotapi.Update)
 		return
 	}
 
-	weather, err := h.owClient.Weather(coordinate.Lat, coordinate.Lon)
+	weather, err := h.owProvider.Weather(weatherCtx, coordinate.Lat, coordinate.Lon)
 	if err != nil {
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Не смогли получить погоду в этой местности")
 		msg.ReplyToMessageID = update.Message.MessageID

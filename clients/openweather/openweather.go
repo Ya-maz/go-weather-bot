@@ -17,10 +17,15 @@ func New(apiKey string) *OpenWeatherClient {
 	}
 }
 
-func (o OpenWeatherClient) Coordinates(city string) (Coordinate, error) {
-	url := "http://api.openweathermap.org/geo/1.0/direct?q=%s&limit=5&appid=%s"
+func (o OpenWeatherClient) Coordinates(ctx context.Context, city string) (Coordinate, error) {
+	url := fmt.Sprintf("http://api.openweathermap.org/geo/1.0/direct?q=%s&limit=5&appid=%s", city, o.apiKey)
 
-	resp, err := http.Get(fmt.Sprintf(url, city, o.apiKey))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return Coordinate{}, fmt.Errorf("error creating request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Println(err)
 		return Coordinate{}, fmt.Errorf("error get Coordinates: %w", err)
@@ -28,7 +33,6 @@ func (o OpenWeatherClient) Coordinates(city string) (Coordinate, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Println(err)
 		return Coordinate{}, fmt.Errorf("error fail get Coordinates: %d", resp.StatusCode)
 	}
 
@@ -49,9 +53,15 @@ func (o OpenWeatherClient) Coordinates(city string) (Coordinate, error) {
 	}, nil
 }
 
-func (o OpenWeatherClient) Weather(lat float64, lon float64) (Weather, error) {
-	url := "https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&appid=%s&units=metric"
-	resp, err := http.Get(fmt.Sprintf(url, lat, lon, o.apiKey))
+func (o OpenWeatherClient) Weather(ctx context.Context, lat float64, lon float64) (Weather, error) {
+	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&appid=%s&units=metric", lat, lon, o.apiKey)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return Weather{}, fmt.Errorf("error creating request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Println(err)
 		return Weather{}, fmt.Errorf("error get weather: %w", err)
@@ -59,7 +69,6 @@ func (o OpenWeatherClient) Weather(lat float64, lon float64) (Weather, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Println(err)
 		return Weather{}, fmt.Errorf("error fail get weather: %d", resp.StatusCode)
 	}
 
