@@ -36,7 +36,7 @@ func (r *Repo) CreateUser(ctx context.Context, userID int64) error {
 	if err != nil {
 		return fmt.Errorf("error db.Exec: %w", err)
 	}
-    return nil
+	return nil
 }
 
 func (r *Repo) UpdateUserCity(ctx context.Context, userID int64, city string) error {
@@ -44,20 +44,20 @@ func (r *Repo) UpdateUserCity(ctx context.Context, userID int64, city string) er
 	if err != nil {
 		return fmt.Errorf("error db.Exec: %w", err)
 	}
-    return nil
+	return nil
 }
 
 func (r *Repo) GetUser(ctx context.Context, userID int64) (*models.User, error) {
-    user := models.User{}
-    row := r.db.QueryRow(ctx, "select id, city, created_at from users where id = $1", userID)
-    err := row.Scan(&user.ID, &user.City, &user.CreatedAt)
+	user := models.User{}
+	row := r.db.QueryRow(ctx, "select id, city, created_at from users where id = $1", userID)
+	err := row.Scan(&user.ID, &user.City, &user.CreatedAt)
 
 	if err != nil {
-        if errors.Is(err, pgx.ErrNoRows) {
-            return nil, nil
-        }
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return &models.User{}, fmt.Errorf("error row.Scan: %w", err)
 	}
 
-    return &user, nil
+	return &user, nil
 }

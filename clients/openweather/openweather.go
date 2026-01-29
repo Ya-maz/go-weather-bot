@@ -1,6 +1,7 @@
 package openweather
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,16 +10,20 @@ import (
 
 type OpenWeatherClient struct {
 	apiKey string
+	apiURL string // https://api.openweathermap.org/data/2.5/weather
+	geoURL string // http://api.openweathermap.org/geo/1.0/direct
 }
 
 func New(apiKey string) *OpenWeatherClient {
 	return &OpenWeatherClient{
 		apiKey: apiKey,
+		apiURL: "https://api.openweathermap.org/data/2.5/weather",
+		geoURL: "http://api.openweathermap.org/geo/1.0/direct",
 	}
 }
 
 func (o OpenWeatherClient) Coordinates(ctx context.Context, city string) (Coordinate, error) {
-	url := fmt.Sprintf("http://api.openweathermap.org/geo/1.0/direct?q=%s&limit=5&appid=%s", city, o.apiKey)
+	url := fmt.Sprintf("%s?q=%s&limit=5&appid=%s", o.geoURL, city, o.apiKey)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -54,7 +59,7 @@ func (o OpenWeatherClient) Coordinates(ctx context.Context, city string) (Coordi
 }
 
 func (o OpenWeatherClient) Weather(ctx context.Context, lat float64, lon float64) (Weather, error) {
-	url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?lat=%f&lon=%f&appid=%s&units=metric", lat, lon, o.apiKey)
+	url := fmt.Sprintf("%s?lat=%f&lon=%f&appid=%s&units=metric", o.apiURL, lat, lon, o.apiKey)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {

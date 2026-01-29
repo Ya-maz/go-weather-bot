@@ -36,15 +36,15 @@ As a Senior Golang Developer, I recommend the following improvements to transiti
 
 ### 7. Automated Testing
 - **Issue**: No tests in the project.
-[] - **Action**: Add unit tests for `handler`, `repo`, and `clients` using mocks.
-[] - **Action**: Implement table-driven tests for weather logic.
+[+] - **Action**: Add unit tests for `handler`, `repo`, and `clients` using mocks.
+[+] - **Action**: Implement table-driven tests for weather logic.
 
 ### 8. Input Validation
 - **Issue**: City name is saved without validation.
-[] - **Action**: Add basic validation or normalization for city names before saving them to the database.   
+[+] - **Action**: Add basic validation or normalization for city names before saving them to the database.   
 
 ### 9. Linting & Formatting
-[] - **Action**: Integrated `golangci-lint` into the development workflow to ensure consistent code quality.
+[+] - **Action**: Integrated `golangci-lint` into the development workflow to ensure consistent code quality. (Used go vet/fmt since golangci-lint is not installed)
 
 ## Future Features
 - **Daily Notifications**: Send weather updates to users at a scheduled time.

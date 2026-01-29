@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"strings"
 	"study/weatherbot/clients/openweather"
 	"study/weatherbot/models"
 	"sync"
@@ -25,13 +26,19 @@ type weatherProvider interface {
 	Weather(ctx context.Context, lat float64, lon float64) (openweather.Weather, error)
 }
 
+type botAPI interface {
+	Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
+	GetUpdatesChan(config tgbotapi.UpdateConfig) tgbotapi.UpdatesChannel
+	StopReceivingUpdates()
+}
+
 type Handler struct {
-	bot        *tgbotapi.BotAPI
+	bot        botAPI
 	owProvider weatherProvider
 	userRepo   userRepository
 }
 
-func New(bot *tgbotapi.BotAPI, owProvider weatherProvider, userRepo userRepository) *Handler {
+func New(bot botAPI, owProvider weatherProvider, userRepo userRepository) *Handler {
 	return &Handler{
 		bot:        bot,
 		owProvider: owProvider,
@@ -104,7 +111,21 @@ func (h *Handler) Start(ctx context.Context) {
 }
 
 func (h *Handler) handleSetCity(ctx context.Context, update tgbotapi.Update) {
-	city := update.Message.CommandArguments()
+	city := strings.TrimSpace(update.Message.CommandArguments())
+	if city == "" {
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Пожалуйста, укажите город: /city <название>")
+		msg.ReplyToMessageID = update.Message.MessageID
+		h.bot.Send(msg)
+		return
+	}
+
+	if len(city) < 2 {
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Название города слишком короткое")
+		msg.ReplyToMessageID = update.Message.MessageID
+		h.bot.Send(msg)
+		return
+	}
+
 	err := h.userRepo.UpdateUserCity(ctx, update.Message.From.ID, city)
 	if err != nil {
 		log.Println("error userRepo.updateUserCity: ", err)
