@@ -7,8 +7,9 @@ type CoordinateResponse struct {
 }
 
 type Coordinate struct {
-	Lat float64
-	Lon float64
+	Name string
+	Lat  float64
+	Lon  float64
 }
 
 type WeatherResponse struct {

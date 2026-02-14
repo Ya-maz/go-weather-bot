@@ -13,7 +13,7 @@ func TestOpenWeatherClient_Coordinates(t *testing.T) {
 		q := r.URL.Query().Get("q")
 		if q == "Moscow" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`[{"lat": 55.7558, "lon": 37.6173}]`))
+			w.Write([]byte(`[{"name": "Moscow", "lat": 55.7558, "lon": 37.6173}]`))
 		} else if q == "NotFound" {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`[]`))
@@ -29,14 +29,15 @@ func TestOpenWeatherClient_Coordinates(t *testing.T) {
 	client.geoURL = server.URL + "/geo/1.0/direct"
 
 	tests := []struct {
-		name    string
-		city    string
-		wantErr bool
-		wantLat float64
+		name     string
+		city     string
+		wantErr  bool
+		wantLat  float64
+		wantName string
 	}{
-		{"Valid city", "Moscow", false, 55.7558},
-		{"Not found", "NotFound", true, 0},
-		{"Server error", "Error", true, 0},
+		{"Valid city", "Moscow", false, 55.7558, "Moscow"},
+		{"Not found", "NotFound", true, 0, ""},
+		{"Server error", "Error", true, 0, ""},
 	}
 
 	for _, tt := range tests {
@@ -46,8 +47,13 @@ func TestOpenWeatherClient_Coordinates(t *testing.T) {
 				t.Errorf("Coordinates() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !tt.wantErr && coord.Lat != tt.wantLat {
-				t.Errorf("got Lat %v, want %v", coord.Lat, tt.wantLat)
+			if !tt.wantErr {
+				if coord.Lat != tt.wantLat {
+					t.Errorf("got Lat %v, want %v", coord.Lat, tt.wantLat)
+				}
+				if coord.Name != tt.wantName {
+					t.Errorf("got Name %v, want %v", coord.Name, tt.wantName)
+				}
 			}
 		})
 	}

@@ -57,7 +57,9 @@ func (m *mockBotAPI) StopReceivingUpdates() {}
 
 func TestHandler_HandleUpdate_SetCity(t *testing.T) {
 	repo := &mockUserRepo{user: &models.User{ID: 1}}
-	weather := &mockWeatherProvider{}
+	weather := &mockWeatherProvider{
+		coord: openweather.Coordinate{Name: "Moscow", Lat: 55, Lon: 37},
+	}
 	bot := &mockBotAPI{}
 
 	h := New(bot, weather, repo)

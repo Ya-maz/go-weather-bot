@@ -3,10 +3,13 @@ package openweather
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 )
+
+var ErrCityNotFound = errors.New("city not found")
 
 type OpenWeatherClient struct {
 	apiKey string
@@ -49,12 +52,13 @@ func (o OpenWeatherClient) Coordinates(ctx context.Context, city string) (Coordi
 	}
 
 	if len(coordinatesResponse) == 0 {
-		return Coordinate{}, fmt.Errorf("error emptry Coordinates")
+		return Coordinate{}, ErrCityNotFound
 	}
 
 	return Coordinate{
-		Lat: coordinatesResponse[0].Lat,
-		Lon: coordinatesResponse[0].Lon,
+		Name: coordinatesResponse[0].Name,
+		Lat:  coordinatesResponse[0].Lat,
+		Lon:  coordinatesResponse[0].Lon,
 	}, nil
 }
 

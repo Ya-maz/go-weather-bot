@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -111,29 +112,50 @@ func (h *Handler) Start(ctx context.Context) {
 }
 
 func (h *Handler) handleSetCity(ctx context.Context, update tgbotapi.Update) {
-	city := strings.TrimSpace(update.Message.CommandArguments())
-	if city == "" {
+	cityInput := strings.TrimSpace(update.Message.CommandArguments())
+	if cityInput == "" {
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Пожалуйста, укажите город: /city <название>")
 		msg.ReplyToMessageID = update.Message.MessageID
 		h.bot.Send(msg)
 		return
 	}
 
-	if len(city) < 2 {
+	if len(cityInput) < 2 {
 		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Название города слишком короткое")
 		msg.ReplyToMessageID = update.Message.MessageID
 		h.bot.Send(msg)
 		return
 	}
 
-	err := h.userRepo.UpdateUserCity(ctx, update.Message.From.ID, city)
+	// Validate city existence and get normalized name
+	weatherCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	coord, err := h.owProvider.Coordinates(weatherCtx, cityInput)
 	if err != nil {
-		log.Println("error userRepo.updateUserCity: ", err)
-		msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Ошибка при попытке сохранения города - %s", city))
+		if errors.Is(err, openweather.ErrCityNotFound) {
+			msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Город '%s' не найден. Пожалуйста, проверьте правильность написания.", cityInput))
+			msg.ReplyToMessageID = update.Message.MessageID
+			h.bot.Send(msg)
+			return
+		}
+		log.Println("error owProvider.Coordinates: ", err)
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, "Произошла ошибка при проверке города. Попробуйте позже.")
 		msg.ReplyToMessageID = update.Message.MessageID
 		h.bot.Send(msg)
+		return
 	}
-	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Город %s сохранен", city))
+
+	err = h.userRepo.UpdateUserCity(ctx, update.Message.From.ID, coord.Name)
+	if err != nil {
+		log.Println("error userRepo.updateUserCity: ", err)
+		msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Ошибка при попытке сохранения города - %s", coord.Name))
+		msg.ReplyToMessageID = update.Message.MessageID
+		h.bot.Send(msg)
+		return
+	}
+
+	msg := tgbotapi.NewMessage(update.Message.Chat.ID, fmt.Sprintf("Город %s успешно сохранен", coord.Name))
 	msg.ReplyToMessageID = update.Message.MessageID
 	h.bot.Send(msg)
 }
