@@ -36,15 +36,24 @@ clean:
 build:
 	go build -o $(BINARY_NAME) main.go
 
-## dev-db: Start only the database container and run migrations
+## dev-db: Start the database container if needed and ensure it's healthy
 dev-db:
-	docker-compose up -d db
-	@echo "Waiting for database to be ready..."
-	@until [ "$$(docker inspect -f '{{.State.Health.Status}}' weather-db)" = "healthy" ]; do sleep 1; done
-	$(MAKE) up
+	@STATUS=$$(docker inspect -f '{{.State.Health.Status}}' weather-db 2>/dev/null || echo "not_found"); \
+	if [ "$$STATUS" != "healthy" ]; then \
+		echo "Database is $$STATUS. Starting/Waiting..."; \
+		docker-compose up -d db; \
+		until [ "$$(docker inspect -f '{{.State.Health.Status}}' weather-db 2>/dev/null)" = "healthy" ]; do \
+			printf "."; \
+			sleep 1; \
+		done; \
+		echo "\nDatabase is ready!"; \
+	else \
+		echo "Database is already healthy."; \
+	fi
+	@$(MAKE) up
 
-## run: Build and run the application locally
-run: build
+## run: Ensure database is ready, build and run the application locally
+run: dev-db build
 	./$(BINARY_NAME)
 
 ## up: Run database migrations locally
