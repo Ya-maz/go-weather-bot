@@ -6,7 +6,7 @@ BINARY_NAME=weatherbot
 GOOSE_BIN=$(shell go env GOPATH)/bin/goose
 
 .PHONY: all help fmt clean test run build up down status create \
-        docker-up docker-down docker-logs docker-db docker-clean install-goose
+        docker-up docker-down docker-logs docker-db docker-clean install-goose dev-db
 
 all: help
 
@@ -35,6 +35,13 @@ clean:
 ## build: Build the binary locally
 build:
 	go build -o $(BINARY_NAME) main.go
+
+## dev-db: Start only the database container and run migrations
+dev-db:
+	docker-compose up -d db
+	@echo "Waiting for database to be ready..."
+	@until [ "$$(docker inspect -f '{{.State.Health.Status}}' weather-db)" = "healthy" ]; do sleep 1; done
+	$(MAKE) up
 
 ## run: Build and run the application locally
 run: build
